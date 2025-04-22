@@ -165,15 +165,15 @@
           <pose>0 0 0 0 0 0</pose>
           <topic>scan</topic>
           <gz_frame_id>diff_drive/lidar_link</gz_frame_id>
-          <update_rate>10</update_rate>
+          <update_rate>1</update_rate>
           <always_on>1</always_on>
           <lidar>
             <scan>
               <horizontal>
-                <samples>1</samples>
-                <resolution>1</resolution>
+                <samples>2</samples>
+                <resolution>2</resolution>
                 <min_angle>0.0</min_angle>
-                <max_angle>0.0</max_angle>
+                <max_angle>1.5708</max_angle>
               </horizontal>
               <vertical>
                 <samples>1</samples>
