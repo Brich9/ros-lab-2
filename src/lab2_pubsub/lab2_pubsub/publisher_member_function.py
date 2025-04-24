@@ -25,44 +25,50 @@ class MinimalPublisher(Node):
         super().__init__('minimal_publisher')
         self.publisher_ = self.create_publisher(Twist, '/diff_drive/cmd_vel', 10)
         self.sub = self.create_subscription(LaserScan  , 'diff_drive/scan', self.pose_callback, 10)
+        # Front Laser distance reading
         self.pose = None
+        # Left Laser distance reading
         self.pose_left  = None
-        self.frontScan = None
-        self.error = 0.0
+        # Used for PID calculation, distance from left wall        
         self.left_distance = 1.15
+        # PID tunes
         self.Kp = 0.1
         self.Ki = 0.0
         self.Kd = 1.0
         self.dt = 0.1
+        # Previous left distance
         self.previous_left_distance = 0.0
-        self.left_int = 0.0
-        self.prev_distance = 0.0
+        self.left_int = 0.0 # Not used but needed if integral is added
+        self.prev_distance = 0.0 # Not used in final implementation
 
     def pose_callback(self, position):
+        # Get laser info
         self.pose = position.ranges[0]
         self.pose_left = position.ranges[1]
         msg = Twist()
+        # Make PID calculations
         distance_error_left = self.pose_left- self.left_distance
         left_prop = distance_error_left
         self.left_int = self.left_int + distance_error_left * self.dt
         left_derivative = (distance_error_left - self.previous_left_distance) / self.dt
         distance = self.Kp * left_prop + self.Kd * left_derivative + self.Ki * self.left_int
         
-
+        # Move at a set rate and turn based on calculations
         msg.linear.x = 1.0
         msg.angular.z = distance
-        self.get_logger().info(f"{self.pose_left}")
+        # used for logging
+        # self.get_logger().info(f"{self.pose_left}")
 
+        
+        # Specific case for entering the room
         if self.pose_left > 5.0 and self.pose_left < 8.0 :
             msg.linear.x = 0.1
             msg.angular.z = 0.5
-        # elif self.pose < 1.3:
-        #     msg.linear.x = -2.0
-        #     msg.angular.z = -2.0
+        # Turn right if too close to the wall
         elif self.pose < 1.8:
             msg.linear.x = 0.10
             msg.angular.z = -0.6
-        
+        # Dont react to a sudden change or a really far wall
         elif self.pose_left - self.previous_left_distance > 7.0 or self.pose_left > 8.7:
             msg.linear.x = 1.0
             msg.angular.z = 0.0
