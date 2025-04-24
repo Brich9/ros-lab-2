@@ -1,0 +1,92 @@
+# Copyright 2016 Open Source Robotics Foundation, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import Twist
+from sensor_msgs.msg import LaserScan
+import math
+
+
+class MinimalPublisher(Node):
+
+    def __init__(self):
+        super().__init__('minimal_publisher')
+        self.publisher_ = self.create_publisher(Twist, '/diff_drive/cmd_vel', 10)
+        self.sub = self.create_subscription(LaserScan  , 'diff_drive/scan', self.pose_callback, 10)
+        self.pose = None
+        self.pose_left  = None
+        self.frontScan = None
+        self.error = 0.0
+        self.left_distance = 1.15
+        self.Kp = 0.1
+        self.Ki = 0.0
+        self.Kd = 1.0
+        self.dt = 0.1
+        self.previous_left_distance = 0.0
+        self.left_int = 0.0
+        self.prev_distance = 0.0
+
+    def pose_callback(self, position):
+        self.pose = position.ranges[0]
+        self.pose_left = position.ranges[1]
+        msg = Twist()
+        distance_error_left = self.pose_left- self.left_distance
+        left_prop = distance_error_left
+        self.left_int = self.left_int + distance_error_left * self.dt
+        left_derivative = (distance_error_left - self.previous_left_distance) / self.dt
+        distance = self.Kp * left_prop + self.Kd * left_derivative + self.Ki * self.left_int
+        
+
+        msg.linear.x = 1.0
+        msg.angular.z = distance
+        self.get_logger().info(f"{self.pose_left}")
+
+        if self.pose_left > 5.0 and self.pose_left < 8.0 :
+            msg.linear.x = 0.1
+            msg.angular.z = 0.5
+        # elif self.pose < 1.3:
+        #     msg.linear.x = -2.0
+        #     msg.angular.z = -2.0
+        elif self.pose < 1.8:
+            msg.linear.x = 0.10
+            msg.angular.z = -0.6
+        
+        elif self.pose_left - self.previous_left_distance > 7.0 or self.pose_left > 8.7:
+            msg.linear.x = 1.0
+            msg.angular.z = 0.0
+        
+        
+        self.publisher_.publish(msg)
+
+        self.previous_left_distance = distance_error_left
+        self.prev_distance = distance
+
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    minimal_publisher = MinimalPublisher()
+
+    rclpy.spin(minimal_publisher)
+
+    # Destroy the node explicitly
+    # (optional - otherwise it will be done automatically
+    # when the garbage collector destroys the node object)
+    minimal_publisher.destroy_node()
+    rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
